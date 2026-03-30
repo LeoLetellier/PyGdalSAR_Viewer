@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/Pygdalsar_Viewer" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>
