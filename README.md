@@ -1,0 +1,1 @@
+🛰️ PyGdalSAR Viewer - QGIS Plugin 🌍
