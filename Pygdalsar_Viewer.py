@@ -30,8 +30,9 @@ from qgis.PyQt.QtWidgets import QAction
 
 # Initialize Qt resources from file resources.py
 from .resources import *
-from .ui.about_dialog import AboutDialog
 from .ui.pygdalsar_viewer_cube import PygdalsarViewerCube
+from .ui.pygdalsar_viewer_section import PygdalsarViewerSection
+from .ui.pygdalsar_viewer_ts import PygdalsarViewerTS
 
 
 class PygdalsarViewer:
@@ -70,6 +71,8 @@ class PygdalsarViewer:
 
         self.pluginIsActive = False
         self.viewerCube = None
+        self.viewerTS = None
+        self.viewerSection = None
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -122,21 +125,50 @@ class PygdalsarViewer:
             checkable=True,
         )
 
-        # TODO need an actual icon...
-        icon_about = ":/plugins/Pygdalsar_Viewer/icon_about.png"
-        self.add_action(
-            icon_about,
-            text=self.tr("About PyGdalSAR Viewer"),
-            callback=self.run_about,
+        icon_path = ":/plugins/Pygdalsar_Viewer/icon.png"
+        self.action_ts = self.add_action(
+            icon_path,
+            text=self.tr("PyGdalSAR Time Series"),
+            callback=self.run_ts,
             parent=self.iface.mainWindow(),
-            status_tip=self.tr("About this plugin"),
+            checkable=True,
         )
 
-    def onClosePlugin(self):
-        """Cleanup necessary items here when plugin dockwidget is closed"""
-        self.viewerCube.closingPlugin.disconnect(self.onClosePlugin)
-        self.pluginIsActive = False
-        self.action_viewer.setChecked(False)
+        icon_path = ":/plugins/Pygdalsar_Viewer/icon.png"
+        self.action_section = self.add_action(
+            icon_path,
+            text=self.tr("PyGdalSAR Section"),
+            callback=self.run_section,
+            parent=self.iface.mainWindow(),
+            checkable=True,
+        )
+
+    def onClosePlugin(self, viewer):
+        """Cleanup necessary items when a specific viewer is closed"""
+        # Disconnect the signal for the closed viewer
+        try:
+            viewer.closingPlugin.disconnect()
+        except TypeError:
+            pass  # Signal was not connected, ignore
+
+        # Reset the viewer reference and action state
+        if viewer == self.viewerCube:
+            self.viewerCube = None
+            self.action_viewer.setChecked(False)
+        elif viewer == self.viewerTS:
+            self.viewerTS = None
+            self.action_ts.setChecked(False)
+        elif viewer == self.viewerSection:
+            self.viewerSection = None
+            self.action_section.setChecked(False)
+
+        # Update pluginIsActive if all viewers are closed
+        if (
+            self.viewerCube is None
+            and self.viewerTS is None
+            and self.viewerSection is None
+        ):
+            self.pluginIsActive = False
 
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI"""
@@ -146,22 +178,43 @@ class PygdalsarViewer:
         del self.toolbar
 
     def run_cube(self, checked: bool):
-        """Run the cube viewer"""
         if checked:
-            if not self.pluginIsActive:
-                self.pluginIsActive = True
-
-                if self.viewerCube is None:
-                    self.viewerCube = PygdalsarViewerCube()
-
-                self.viewerCube.closingPlugin.connect(self.onClosePlugin)
-                self.iface.addDockWidget(Qt.BottomDockWidgetArea, self.viewerCube)
-                self.viewerCube.show()
+            if self.viewerCube is None:
+                self.viewerCube = PygdalsarViewerCube()
+                # Pass the viewer instance to onClosePlugin
+                self.viewerCube.closingPlugin.connect(
+                    lambda: self.onClosePlugin(self.viewerCube)
+                )
+            self.iface.addDockWidget(Qt.TopDockWidgetArea, self.viewerCube)
+            self.viewerCube.show()
         else:
             if self.viewerCube is not None:
                 self.viewerCube.close()
 
-    def run_about(self):
-        """Open the About dialog"""
-        dlg = AboutDialog(parent=self.iface.mainWindow())
-        dlg.exec_()
+    def run_section(self, checked: bool):
+        if checked:
+            if self.viewerSection is None:
+                self.viewerSection = PygdalsarViewerSection()
+                # Pass the viewer instance to onClosePlugin
+                self.viewerSection.closingPlugin.connect(
+                    lambda: self.onClosePlugin(self.viewerSection)
+                )
+            self.iface.addDockWidget(Qt.BottomDockWidgetArea, self.viewerSection)
+            self.viewerSection.show()
+        else:
+            if self.viewerSection is not None:
+                self.viewerSection.close()
+
+    def run_ts(self, checked: bool):
+        if checked:
+            if self.viewerTS is None:
+                self.viewerTS = PygdalsarViewerTS()
+                # Pass the viewer instance to onClosePlugin
+                self.viewerTS.closingPlugin.connect(
+                    lambda: self.onClosePlugin(self.viewerTS)
+                )
+            self.iface.addDockWidget(Qt.BottomDockWidgetArea, self.viewerTS)
+            self.viewerTS.show()
+        else:
+            if self.viewerTS is not None:
+                self.viewerTS.close()
